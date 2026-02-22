@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MyTube</title>
+
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  <style>
+    :root{
+      --bg:#0f0f0f; --panel:#181818; --card:#1a1a1a; --border:#242424;
+      --text:#fff; --muted:#b3b3b3; --accent:#ff0000;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+
+    header{
+      position:sticky; top:0; z-index:50;
+      height:56px; display:flex; align-items:center; gap:12px;
+      padding:0 12px; background:var(--panel); border-bottom:1px solid var(--border);
+    }
+    .brand{display:flex; align-items:center; gap:10px; font-weight:700}
+    .dot{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+    .search{
+      flex:1; display:flex; justify-content:center;
+    }
+    .search input{
+      width:min(720px,100%); height:38px; padding:0 12px;
+      border-radius:999px; border:1px solid var(--border);
+      background:#0b0b0b; color:var(--text); outline:none;
+    }
+    .wrap{
+      max-width:1200px; margin:0 auto; padding:12px;
+      display:grid; grid-template-columns: 1fr; gap:14px;
+    }
+
+    /* Player */
+    .playerCard{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:14px; overflow:hidden;
+    }
+    .playerTop{padding:10px 12px; border-bottom:1px solid var(--border)}
+    .nowTitle{font-weight:650; font-size:16px; line-height:1.2}
+    .nowMeta{margin-top:6px; color:var(--muted); font-size:13px}
+    .videoBox{background:#000}
+    video{width:100%; height:auto; display:block; aspect-ratio:16/9}
+
+    /* Grid */
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap:14px;
+    }
+    .card{
+      background:transparent; cursor:pointer;
+      border-radius:14px; overflow:hidden;
+      transition:transform .15s ease;
+    }
+    .card:active{transform:scale(.98)}
+    .thumb{
+      position:relative; background:#111;
+      border-radius:14px; overflow:hidden;
+      border:1px solid var(--border);
+      aspect-ratio:16/9;
+    }
+    .thumb img{
+      width:100%; height:100%; object-fit:cover; display:block;
+    }
+    .dur{
+      position:absolute; right:8px; bottom:8px;
+      background:rgba(0,0,0,.75); padding:3px 6px; border-radius:8px;
+      font-size:12px;
+    }
+    .info{padding:8px 2px}
+    .t{
+      font-weight:650; font-size:14px; line-height:1.25;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
+    .m{margin-top:6px; color:var(--muted); font-size:12.5px}
+
+    /* Layout on wide screens */
+    @media (min-width: 980px){
+      .wrap{grid-template-columns: 1.25fr .75fr; align-items:start}
+      .rightCol{position:sticky; top:70px}
+      .grid{grid-template-columns: 1fr}
+    }
+
+    /* Smooth scrolling */
+    .smooth{scroll-behavior:smooth}
+  </style>
+</head>
+<body class="smooth">
+
+<header>
+  <div class="brand"><span class="dot"></span> MyTube</div>
+  <div class="search">
+    <input id="q" type="search" placeholder="Search" autocomplete="off" />
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="playerCard">
+    <div class="playerTop">
+      <div class="nowTitle" id="nowTitle">Select a video</div>
+      <div class="nowMeta" id="nowMeta">—</div>
+    </div>
+    <div class="videoBox">
+      <video id="video" controls playsinline></video>
+    </div>
+  </div>
+
+  <div class="rightCol">
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+<script>
+  const grid = document.getElementById('grid');
+  const q = document.getElementById('q');
+  const nowTitle = document.getElementById('nowTitle');
+  const nowMeta = document.getElementById('nowMeta');
+  const videoEl = document.getElementById('video');
+
+  const player = new Plyr(videoEl, {
+    controls: ['play','progress','current-time','mute','volume','settings','fullscreen']
+  });
+
+  let all = [];
+  let currentIndex = -1;
+
+  function safeText(s){ return (s ?? '').toString(); }
+
+  function render(list){
+    grid.innerHTML = '';
+    list.forEach((v, idx) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="thumb">
+          <img loading="lazy" src="${v.thumb || ''}" alt="">
+          <div class="dur">${v.duration || ''}</div>
+        </div>
+        <div class="info">
+          <div class="t">${safeText(v.title)}</div>
+          <div class="m">${safeText(v.views)} • ${safeText(v.time)}</div>
+        </div>
+      `;
+      card.onclick = () => playVideo(v, idx);
+      grid.appendChild(card);
+    });
+  }
+
+  function playVideo(v, idx){
+    currentIndex = idx;
+    nowTitle.textContent = v.title || 'Untitled';
+    nowMeta.textContent = `${v.views || ''}${v.views ? ' • ' : ''}${v.time || ''}`;
+    player.source = {
+      type: 'video',
+      sources: [{ src: v.file, type: 'video/mp4' }]
+    };
+    player.play();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function filter(){
+    const term = q.value.trim().toLowerCase();
+    const list = term
+      ? all.filter(v => (v.title || '').toLowerCase().includes(term))
+      : all;
+    render(list);
+  }
+
+  async function init(){
+    try{
+      const res = await fetch('videos.json', { cache: 'no-store' });
+      all = await res.json();
+      render(all);
+      if (all.length) playVideo(all[0], 0);
+    }catch(e){
+      nowTitle.textContent = 'Could not load videos.json';
+      nowMeta.textContent = 'Make sure videos.json exists in the repo root.';
+    }
+  }
+
+  q.addEventListener('input', filter);
+  init();
+</script>
+
+</body>
+  </html>
